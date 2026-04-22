@@ -1,0 +1,11 @@
+[project]
+name = "excel_grader"
+version = "0.0.1"
+dependencies = [
+	"polars",
+	"numpy",
+	"openpyxl",
+	"fastexcel"]
+
+[project.scripts]
+excel_grader = "excel_grader.__main__:main"
