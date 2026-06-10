@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import queue
-import sys
 import threading
 import tkinter as tk
 from pathlib import Path
@@ -11,8 +10,8 @@ from .lab_presets import (
     ALL_LABS,
     build_configs_from_params,
     grouped_params,
-    is_pipeline_unimplemented,
     output_basename,
+    file_match,
 )
 
 
@@ -25,12 +24,12 @@ class GraderApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title(APP_TITLE)
-        self.geometry("720x720")
+        self.geometry("720x780")
         self.minsize(640, 600)
 
-        self._log_queue: "queue.Queue[str]" = queue.Queue()
+        self._log_queue = queue.Queue()
 
-        self._param_vars: dict[str, tk.StringVar] = {}
+        self._param_vars = {}
         self._input_dir = tk.StringVar()
         self._output_dir = tk.StringVar()
         self._section = tk.StringVar()
@@ -41,33 +40,31 @@ class GraderApp(tk.Tk):
         self._on_lab_change()
         self.after(100, self._drain_log_queue)
 
-    # Layout
     def _build_layout(self):
         root = ttk.Frame(self, padding=PAD * 2)
         root.pack(fill="both", expand=True)
         root.columnconfigure(0, weight=1)
         root.rowconfigure(4, weight=1)
 
-        # Folders
         folders = ttk.LabelFrame(root, text="Folders", padding=SECTION_PAD)
         folders.grid(row=0, column=0, sticky="ew")
         folders.columnconfigure(1, weight=1)
 
-        ttk.Label(folders, text="Output folder:").grid(row=0, column=0, sticky="w")
-        ttk.Entry(folders, textvariable=self._output_dir).grid(
+        ttk.Label(folders, text="Input folder:").grid(row=0, column=0, sticky="w")
+        ttk.Entry(folders, textvariable=self._input_dir).grid(
             row=0, column=1, sticky="ew", padx=PAD
         )
-        ttk.Button(folders, text="Browse...", command=self._pick_output_dir).grid(
+        ttk.Button(folders, text="Browse...", command=self._pick_input_dir).grid(
             row=0, column=2
         )
 
-        ttk.Label(folders, text="Input folder:").grid(
+        ttk.Label(folders, text="Output folder:").grid(
             row=1, column=0, sticky="w", pady=(PAD, 0)
         )
-        ttk.Entry(folders, textvariable=self._input_dir).grid(
+        ttk.Entry(folders, textvariable=self._output_dir).grid(
             row=1, column=1, sticky="ew", padx=PAD, pady=(PAD, 0)
         )
-        ttk.Button(folders, text="Browse...", command=self._pick_input_dir).grid(
+        ttk.Button(folders, text="Browse...", command=self._pick_output_dir).grid(
             row=1, column=2, pady=(PAD, 0)
         )
 
@@ -78,7 +75,6 @@ class GraderApp(tk.Tk):
             row=2, column=1, sticky="ew", padx=PAD, pady=(PAD, 0)
         )
 
-        # Lab selector
         lab_row = ttk.Frame(root)
         lab_row.grid(row=1, column=0, sticky="ew", pady=(SECTION_PAD, 0))
         lab_row.columnconfigure(1, weight=1)
@@ -89,17 +85,15 @@ class GraderApp(tk.Tk):
             values=list(ALL_LABS.keys()),
             textvariable=self._lab_choice,
             state="readonly",
-            width=20,
+            width=24,
         )
         lab_combo.grid(row=0, column=1, sticky="w", padx=(PAD, 0))
         lab_combo.bind("<<ComboboxSelected>>", lambda _e: self._on_lab_change())
 
-        # Config sections
         self._config_container = ttk.Frame(root)
         self._config_container.grid(row=2, column=0, sticky="ew", pady=(SECTION_PAD, 0))
         self._config_container.columnconfigure(0, weight=1)
 
-        # Run button
         run_row = ttk.Frame(root)
         run_row.grid(row=3, column=0, sticky="ew", pady=(SECTION_PAD, 0))
         run_row.columnconfigure(0, weight=1)
@@ -109,17 +103,13 @@ class GraderApp(tk.Tk):
         )
         self._run_btn.grid(row=0, column=0, sticky="ew")
 
-        # Log
         log_frame = ttk.LabelFrame(root, text="Log", padding=SECTION_PAD)
         log_frame.grid(row=4, column=0, sticky="nsew", pady=(SECTION_PAD, 0))
         log_frame.columnconfigure(0, weight=1)
         log_frame.rowconfigure(0, weight=1)
 
         self._log = tk.Text(
-            log_frame,
-            height=10,
-            wrap="word",
-            state="disabled",
+            log_frame, height=10, wrap="word", state="disabled",
             font=("Consolas", 9),
         )
         self._log.grid(row=0, column=0, sticky="nsew")
@@ -127,8 +117,6 @@ class GraderApp(tk.Tk):
         scroll.grid(row=0, column=1, sticky="ns")
         self._log.configure(yscrollcommand=scroll.set)
 
-    
-    # Dynamic config sections
     def _on_lab_change(self):
         preset = ALL_LABS[self._lab_choice.get()]
 
@@ -141,9 +129,7 @@ class GraderApp(tk.Tk):
                 self._config_container, text=group_name, padding=SECTION_PAD
             )
             section.grid(
-                row=i,
-                column=0,
-                sticky="ew",
+                row=i, column=0, sticky="ew",
                 pady=(0 if i == 0 else PAD, 0),
             )
             section.columnconfigure(1, weight=1)
@@ -158,24 +144,16 @@ class GraderApp(tk.Tk):
                 )
                 self._param_vars[spec["key"]] = var
 
-    
-    # Folder pickers
     def _pick_input_dir(self):
-        d = filedialog.askdirectory(
-            title="Select folder of student .xlsx files"
-        )
+        d = filedialog.askdirectory(title="Select folder of student .xlsx files")
         if d:
             self._input_dir.set(d)
 
     def _pick_output_dir(self):
-        d = filedialog.askdirectory(
-            title="Select folder to write graded results into"
-        )
+        d = filedialog.askdirectory(title="Select folder to write graded results into")
         if d:
             self._output_dir.set(d)
 
-    
-    # Run
     def _run_clicked(self):
         if self._running:
             return
@@ -183,37 +161,40 @@ class GraderApp(tk.Tk):
         in_dir = Path(self._input_dir.get()) if self._input_dir.get() else None
         out_dir = Path(self._output_dir.get()) if self._output_dir.get() else None
         if not in_dir or not in_dir.is_dir():
-            messagebox.showerror(APP_TITLE, "Please pick a valid input folder.")
+            messagebox.showerror(APP_TITLE, "Pick a valid input folder.")
             return
         if not out_dir:
-            messagebox.showerror(APP_TITLE, "Please pick an output folder.")
+            messagebox.showerror(APP_TITLE, "Pick an output folder.")
             return
 
-        # Recursive xlsx discovery
+        preset = ALL_LABS[self._lab_choice.get()]
+
         EXTS = {".xls", ".xlsx", ".xlsm", ".xlsb", ".xltx"}
         xlsx_files = [
-            p
-            for p in in_dir.rglob("*")
+            p for p in in_dir.rglob("*")
             if p.is_file()
             and p.suffix.lower() in EXTS
             and not p.name.startswith("~$")
             and not p.name.startswith("._")
         ]
+        tokens = file_match(preset)
+        if tokens:
+            low = [t.lower() for t in tokens]
+            xlsx_files = [
+                f for f in xlsx_files if any(t in f.name.lower() for t in low)
+            ]
         if not xlsx_files:
-            messagebox.showwarning(
-                APP_TITLE,
-                f"No Excel files found in {in_dir} (searched recursively).",
-            )
-            return
-
-        preset = ALL_LABS[self._lab_choice.get()]
-
-        # If the pipeline isn't wired up upstream yet, don't pretend to grade
-        if is_pipeline_unimplemented(preset):
-            messagebox.showinfo(
-                APP_TITLE,
-                f"{preset['name']} grading is not implemented yet.",
-            )
+            if tokens:
+                messagebox.showwarning(
+                    APP_TITLE,
+                    f"No {preset['name']} files found in {in_dir}. "
+                    f"Looking for filenames containing: {', '.join(tokens)}.",
+                )
+            else:
+                messagebox.showwarning(
+                    APP_TITLE,
+                    f"No Excel files found in {in_dir}.",
+                )
             return
 
         raw_params = {k: v.get() for k, v in self._param_vars.items()}
@@ -223,26 +204,20 @@ class GraderApp(tk.Tk):
             messagebox.showerror(APP_TITLE, f"Config input error:\n{e}")
             return
 
-        section = self._section.get().strip()
-        basename = output_basename(preset)
-
         self._clear_log()
-        self._append_log(f"Lab:     {preset['name']}")
-        if section:
-            self._append_log(f"Section: {section}")
-        self._append_log(f"Input:   {in_dir}")
-        self._append_log(f"Output:  {out_dir}")
+        self._append_log(f"Lab:    {preset['name']}")
+        self._append_log(f"Input:  {in_dir}")
+        self._append_log(f"Output: {out_dir}")
         self._append_log(f"Found {len(xlsx_files)} file(s).\n")
 
         self._set_running(True)
         threading.Thread(
             target=self._worker,
-            args=(in_dir, out_dir, configs, basename, section),
+            args=(in_dir, out_dir, configs, preset, self._section.get().strip()),
             daemon=True,
         ).start()
 
-    def _worker(self, in_dir: Path, out_dir: Path, configs: dict,
-                basename: str, section: str):
+    def _worker(self, in_dir, out_dir, configs, preset, section):
         try:
             from .grader_api import grade_folder
 
@@ -255,33 +230,27 @@ class GraderApp(tk.Tk):
             results = grade_folder(
                 in_dir,
                 out_dir,
-                operation_configs=configs["operation_configs"],
-                stock_configs=configs["stock_configs"],
-                dilution_configs=configs["dilution_configs"],
-                pka_configs=configs["pka_configs"],
-                output_basename=basename,
+                output_basename=output_basename(preset),
                 section=section,
+                file_match=file_match(preset),
                 progress_cb=progress,
+                **configs,
             )
 
             ok = sum(1 for r in results if r["success"])
             err = len(results) - ok
-            suffix = f"_{section}" if section else ""
             self._log_queue.put(
                 f"\nDone. {ok} succeeded, {err} failed. "
-                f"Wrote {basename}results{suffix}.txt and "
-                f"{basename}summary{suffix}.csv to {out_dir}"
+                f"Wrote results.txt and summary.csv to {out_dir}"
             )
         except Exception as e:  # noqa: BLE001
             import traceback as _tb
 
-            self._log_queue.put(f"\nFatal error: {type(e).__name__}: {e}")
+            self._log_queue.put(f"\nError: {type(e).__name__}: {e}")
             self._log_queue.put(_tb.format_exc())
         finally:
             self._log_queue.put("__DONE__")
 
-    
-    # Log fixing
     def _drain_log_queue(self):
         try:
             while True:
@@ -294,7 +263,7 @@ class GraderApp(tk.Tk):
             pass
         self.after(100, self._drain_log_queue)
 
-    def _append_log(self, text: str):
+    def _append_log(self, text):
         self._log.configure(state="normal")
         self._log.insert("end", text + "\n")
         self._log.see("end")
@@ -305,7 +274,7 @@ class GraderApp(tk.Tk):
         self._log.delete("1.0", "end")
         self._log.configure(state="disabled")
 
-    def _set_running(self, running: bool):
+    def _set_running(self, running):
         self._running = running
         self._run_btn.configure(
             text="Running..." if running else "Run Grading",

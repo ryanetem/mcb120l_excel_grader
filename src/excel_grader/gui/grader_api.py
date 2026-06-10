@@ -6,7 +6,6 @@ import io
 import re
 import traceback
 from pathlib import Path
-from typing import Any
 
 import polars as pl
 import polars.selectors as cs
@@ -17,14 +16,18 @@ from .. import utils as _utils
 
 
 def grade_file(
-    xlsx_path: str | Path,
+    xlsx_path,
     *,
-    operation_configs: dict,
-    stock_configs: Any,
-    dilution_configs: Any,
-    pka_configs: dict,
-    separator: str = "_",
-) -> dict:
+    operation_configs,
+    stock_configs,
+    dilution_configs,
+    pka_configs,
+    standard_configs,
+    assay_configs,
+    hh_configs,
+    multiplier_configs,
+    separator="_",
+):
     xlsx_path = Path(xlsx_path)
 
     _inject_configs(
@@ -32,6 +35,10 @@ def grade_file(
         stock_configs=stock_configs,
         dilution_configs=dilution_configs,
         pka_configs=pka_configs,
+        standard_configs=standard_configs,
+        assay_configs=assay_configs,
+        hh_configs=hh_configs,
+        multiplier_configs=multiplier_configs,
     )
 
     # uses logging.error(..., exc_info=True), goes to stderr
@@ -57,22 +64,30 @@ def grade_file(
 
 def _inject_configs(
     *,
-    operation_configs: dict,
-    stock_configs: Any,
-    dilution_configs: Any,
-    pka_configs: dict,
-) -> None:
-    
+    operation_configs,
+    stock_configs,
+    dilution_configs,
+    pka_configs,
+    standard_configs,
+    assay_configs,
+    hh_configs,
+    multiplier_configs,
+):
     
     _configs_mod.OPERATION_CONFIGS = operation_configs
     _configs_mod.STOCK_CONFIGS = stock_configs
     _configs_mod.DILUTION_CONFIGS = dilution_configs
     _configs_mod.PKA_CONFIGS = pka_configs
+    _configs_mod.STANDARD_CONFIGS = standard_configs
+    _configs_mod.ASSAY_CONFIGS = assay_configs
+    _configs_mod.HH_CONFIGS = hh_configs
+    _configs_mod.MULTIPLIER_CONFIGS = multiplier_configs
 
     importlib.reload(_process_config_mod)
 
 
-def _run_one_file(xlsx_path: Path, *, separator: str) -> None:
+def _run_one_file(xlsx_path, *, separator):
+    
     process_operation = _process_config_mod.process_operation
 
     print("-" * 80)
@@ -97,7 +112,7 @@ def _run_one_file(xlsx_path: Path, *, separator: str) -> None:
         print(f"\n--- Step {i}: {parent_group} ---\n")
 
         parent_config = next(
-            (cfg for key, cfg in operation_configs.items() if key in parent_group),
+            (cfg for key, cfg in operation_configs.items() if key == parent_group),
             None,
         )
         if parent_config:
@@ -113,7 +128,7 @@ def _run_one_file(xlsx_path: Path, *, separator: str) -> None:
         processed_any_child = False
         for j, (child_group, _columns) in enumerate(child_groups.items()):
             child_config = next(
-                (cfg for key, cfg in operation_configs.items() if key in child_group),
+                (cfg for key, cfg in operation_configs.items() if key == child_group),
                 None,
             )
             if child_config:
@@ -133,17 +148,22 @@ def _run_one_file(xlsx_path: Path, *, separator: str) -> None:
 
 
 def grade_folder(
-    input_dir: str | Path,
-    output_dir: str | Path,
+    input_dir,
+    output_dir,
     *,
-    operation_configs: dict,
-    stock_configs: Any,
-    dilution_configs: Any,
-    pka_configs: dict,
-    output_basename: str = "results",
-    section: str = "",
+    operation_configs,
+    stock_configs,
+    dilution_configs,
+    pka_configs,
+    standard_configs,
+    assay_configs,
+    hh_configs,
+    multiplier_configs,
+    output_basename="results",
+    section="",
+    file_match=None,
     progress_cb=None,
-) -> list[dict]:
+):
     EXTS = {".xls", ".xlsx", ".xlsm", ".xlsb", ".xltx"}
     input_dir = Path(input_dir)
     output_dir = Path(output_dir)
@@ -156,7 +176,13 @@ def grade_folder(
         and not p.name.startswith("~$")
         and not p.name.startswith("._")
     )
-    results: list[dict] = []
+
+    
+    if file_match:
+        tokens = [t.lower() for t in file_match]
+        files = [f for f in files if any(t in f.name.lower() for t in tokens)]
+
+    results = []
 
     for i, f in enumerate(files, start=1):
         result = grade_file(
@@ -165,6 +191,10 @@ def grade_folder(
             stock_configs=stock_configs,
             dilution_configs=dilution_configs,
             pka_configs=pka_configs,
+            standard_configs=standard_configs,
+            assay_configs=assay_configs,
+            hh_configs=hh_configs,
+            multiplier_configs=multiplier_configs,
         )
         results.append(result)
 
@@ -183,7 +213,7 @@ def grade_folder(
 
     combined_path = output_dir / results_filename
     sep = "-" * 80
-    chunks: list[str] = []
+    chunks = []
     for r in results:
         chunks.append(sep)
         chunks.append("")
@@ -205,6 +235,8 @@ def grade_folder(
         status = "OK" if r["success"] else "ERROR"
         err = (r["error"] or "").replace("\n", " ").replace(",", ";")
         summary_lines.append(f"{folder},{name},{status},{err}")
-    (output_dir / summary_filename).write_text("\n".join(summary_lines), encoding="utf-8")
+    (output_dir / summary_filename).write_text(
+        "\n".join(summary_lines), encoding="utf-8"
+    )
 
     return results

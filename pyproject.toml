@@ -8,7 +8,7 @@ dependencies = [
 	"fastexcel"]
 
 [project.optional-dependencies]
-gui = []  # tkinter ships with CPython, no extra packages required
+gui = []
 
 [project.scripts]
 excel_grader = "excel_grader.__main__:main"

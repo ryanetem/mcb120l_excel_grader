@@ -8,67 +8,42 @@ COLOR = {
                    "blank correction.",
 
     "runtime_params": [
-        {
-            "key": "stock_red",
-            "label": "Red",
-            "default": "",
-            "kind": "float",
-            "group": "Stock Concentrations",
-        },
-        {
-            "key": "stock_blue",
-            "label": "Blue",
-            "default": "",
-            "kind": "float",
-            "group": "Stock Concentrations",
-        },
-        {
-            "key": "stock_yellow",
-            "label": "Yellow",
-            "default": "",
-            "kind": "float",
-            "group": "Stock Concentrations",
-        },
-        {
-            "key": "dilution_factors_1_3",
-            "label": "1-3",
-            "default": "",
-            "kind": "int_list",
-            "group": "Dilution Factors",
-        },
-        {
-            "key": "dilution_factors_4_6",
-            "label": "4-6",
-            "default": "",
-            "kind": "int_list",
-            "group": "Dilution Factors",
-        },
+        {"key": "dilution_factors_1_3", "label": "1-3", "default": "",
+         "kind": "int_list", "group": "Dilution Factor"},
+        {"key": "dilution_factors_4_6", "label": "4-6", "default": "",
+         "kind": "int_list", "group": "Dilution Factor"},
+        {"key": "stock_red", "label": "Red", "default": "",
+         "kind": "float", "group": "Stock Concentrations"},
+        {"key": "stock_blue", "label": "Blue", "default": "",
+         "kind": "float", "group": "Stock Concentrations"},
+        {"key": "stock_yellow", "label": "Yellow", "default": "",
+         "kind": "float", "group": "Stock Concentrations"},
     ],
 
-    "operation_configs": {
+    "build_operation_configs": lambda p: {
         "stock": {
-            "source_group": "stock",
-            "target_group": "stock",
-            "operation": "verify_stock",
+            "source_group": ["stock"],
+            "target_group": ["stock"],
+            "operation": ["verify_stock"],
             "error_msg": "stock verification failed",
         },
         "concentration": {
-            "source_group": "dilution-factor",
-            "target_group": "concentration",
-            "operation": "division",
+            "source_group": ["dilution-factor"],
+            "target_group": ["concentration"],
+            "operation": ["division"],
             "numerator": "stock_color_concentration",
             "error_msg": "concentration verification failed",
         },
         "average": {
-            "source_group": "raw",
-            "target_group": "average",
-            "operation": "mean",
+            "source_group": ["raw"],
+            "target_group": ["average"],
+            "operation": ["mean"],
             "error_msg": "average verification failed",
         },
         "corrected": {
-            "source_group": "average",
-            "target_group": "corrected",
-            "operation": "blank_correction",
+            "source_group": ["average"],
+            "target_group": ["corrected"],
+            "operation": ["blank_correction"],
             "dilution_col": "color_concentration_1-3",
             "error_msg": "corrected verification failed",
         },
@@ -79,90 +54,77 @@ COLOR = {
         "blue": p["stock_blue"],
         "yellow": p["stock_yellow"],
     },
-    # combine both dilution factor sets into one since there is only one DILUTION_CONFIGS constant
     "build_dilution_configs": lambda p: (
         set(p["dilution_factors_1_3"]) | set(p["dilution_factors_4_6"])
     ),
     "build_pka_configs": lambda p: {},
+    "build_standard_configs": lambda p: set(),
+    "build_assay_configs": lambda p: {},
+    "build_hh_configs": lambda p: {},
+    "build_multiplier_configs": lambda p: {},
 }
 
 
 # Buffer (pNP enzyme kinetics, HH)
-# stock concentration first (column order), then dilution factor, then pKa for the HH step
 BUFFER = {
     "name": "Buffer",
     "description": "pNP enzyme kinetics, working dilutions, "
                    "graph, Henderson-Hasselbalch.",
 
     "runtime_params": [
-        {
-            "key": "stock_concentration",
-            "label": "pNP stock (mM)",
-            "default": "",
-            "kind": "float",
-            "group": "Stock Concentrations",
-        },
-        {
-            "key": "dilution_factors",
-            "label": "Dilution Factor",
-            "default": "",
-            "kind": "int_list",
-            "group": "Dilution Factor",
-        },
-        {
-            "key": "pka_pnp",
-            "label": "pKa (pNP)",
-            "default": "",
-            "kind": "float",
-            "group": "Henderson-Hasselbalch",
-        },
+        {"key": "dilution_factors", "label": "Dilution Factor", "default": "",
+         "kind": "int_list", "group": "Dilution Factor"},
+        {"key": "stock_concentration", "label": "pNP stock (mM)", "default": "",
+         "kind": "float", "group": "Stock Concentrations"},
+        {"key": "pka_pnp", "label": "pKa (pNP)", "default": "",
+         "kind": "float", "group": "Henderson-Hasselbalch"},
     ],
 
-    "operation_configs": {
+    "build_operation_configs": lambda p: {
         "stock-concentration": {
-            "source_group": "stock-concentration",
-            "target_group": "stock-concentration",
-            "operation": "verify_stock",
+            "source_group": ["stock-concentration"],
+            "target_group": ["stock-concentration"],
+            "operation": ["verify_stock"],
             "error_msg": "stock verification failed",
         },
         "dilution": {
-            "source_group": "dilution",
-            "target_group": "dilution",
-            "operation": "verify_dilution_factor",
+            "source_group": ["dilution"],
+            "target_group": ["dilution"],
+            "operation": ["verify_dilution_factor"],
             "error_msg": "dilution verification failed",
         },
         "concentration": {
-            "source_group": "stock-concentration",
-            "target_group": "diluted-concentration",
-            "operation": "verify_working",
+            "source_group": ["stock-concentration"],
+            "target_group": ["diluted-concentration"],
+            "operation": ["verify_working"],
             "dilution_col": "pnp_dilution_factor",
             "error_msg": "Working stock verification failed",
         },
         "average": {
-            "source_group": "raw",
-            "target_group": "average",
-            "operation": "mean",
+            "source_group": ["raw"],
+            "target_group": ["average"],
+            "operation": ["mean"],
             "error_msg": "average verification failed",
         },
         "corrected": {
-            "source_group": "average",
-            "target_group": "corrected",
-            "operation": "blank_correction",
+            "source_group": ["average"],
+            "target_group": ["corrected"],
+            "operation": ["blank_correction"],
             "dilution_col": "pnp_diluted-concentration",
             "error_msg": "corrected verification failed",
         },
         "graph": {
-            "source_group": "corrected",
-            "target_group": "graph",
-            "operation": "graph",
+            "source_group": ["corrected"],
+            "target_group": ["graph"],
+            "operation": ["graph"],
             "dilution_col": "pnp_diluted-concentration",
             "set_y_int_to_0": "True",
             "error_msg": "Graph verification failed",
         },
         "hh": {
-            "source_group": "graph",
-            "target_group": "hh",
-            "operation": "verify_hh_ph",
+            "source_group": ["graph"],
+            "target_group": ["hh"],
+            "operation": ["verify_hh_ph"],
             "dilution_col": "graph_slope_naoh",
             "error_msg": "Henderson-Hasselbalch verification failed",
         },
@@ -171,65 +133,308 @@ BUFFER = {
     "build_stock_configs": lambda p: {p["stock_concentration"]},
     "build_dilution_configs": lambda p: set(p["dilution_factors"]),
     "build_pka_configs": lambda p: {"pnp": p["pka_pnp"]},
+    "build_standard_configs": lambda p: set(),
+    "build_assay_configs": lambda p: {},
+    "build_hh_configs": lambda p: {},
+    "build_multiplier_configs": lambda p: {},
 }
 
 
-# A280 (Lab 9: BSA standards, unknown dilutions)
+
+# A280 (Lab 9, A280): BSA standards, linear standard curve
 A280 = {
     "name": "A280",
-    "description": "BSA standard curve, unknown protein concentration "
-                   "via Beer-Lambert (Lab 9, A280 method).",
+    "description": "BSA standard curve via A280, back-calculate unknown.",
+    "file_match": ["a280"],
 
     "runtime_params": [
-        {
-            "key": "standard_concentrations",
-            "label": "Standard concentrations (mg/mL)",
-            "default": "",
-            "kind": "float_list",
-            "group": "BSA Standards",
-        },
-        {
-            "key": "dilution_factors",
-            "label": "Dilution Factor",
-            "default": "",
-            "kind": "int_list",
-            "group": "Unknown Sample",
-        },
+        {"key": "standard_concentrations",
+         "label": "Standard concentrations (mg/mL)", "default": "",
+         "kind": "float_list", "group": "BSA Standards"},
+        {"key": "dilution_factors",
+         "label": "Dilution Factor", "default": "",
+         "kind": "int_list", "group": "Unknown Sample"},
     ],
 
-    # doesn't run because no lab 9 config 
-    "operation_configs": {},
-    "_pipeline_unimplemented": True,
+    "build_operation_configs": lambda p: {
+        "standard": {
+            "source_group": ["standard", "raw", "average"],
+            "target_group": ["standard", "average", "corrected"],
+            "operation": ["verify_standard", "mean", "blank_correction"],
+            "dilution_col": "standard_concentration",
+            "error_msg": "standard verification failed",
+        },
+        "graph": {
+            "source_group": ["corrected"],
+            "target_group": ["graph"],
+            "operation": ["graph"],
+            "dilution_col": "standard_concentration",
+            "source_target": "standard",
+            "set_y_int_to_0": "True",
+            "error_msg": "Graph verification failed",
+        },
+        "unknown": {
+            "source_group": ["dilution-factor", "raw", "average", "corrected"],
+            "target_group": ["dilution-factor", "average", "corrected", "valid"],
+            "operation": ["verify_dilution_factor", "mean",
+                          "blank_correction", "verify_a280_validation"],
+            "dilution_col": "standard_concentration",
+            "validation_ratio": "unknown_dilution-factor",
+            "source_target": "standard",
+            "error_msg": "Unknown verification failed",
+        },
+        "concentration": {
+            "source_group": ["unknown"],
+            "target_group": ["concentration"],
+            "operation": ["concentration_series"],
+            "dilution_col": "unknown_dilution-factor",
+            "source_target": "unknown",
+            "error_msg": "concentration verification failed",
+        },
+    },
 
-    "build_stock_configs": lambda p: set(p["standard_concentrations"]),
+    "build_stock_configs": lambda p: set(),
     "build_dilution_configs": lambda p: set(p["dilution_factors"]),
     "build_pka_configs": lambda p: {},
+    "build_standard_configs": lambda p: set(p["standard_concentrations"]),
+    "build_assay_configs": lambda p: {},
+    "build_hh_configs": lambda p: {},
+    "build_multiplier_configs": lambda p: {},
 }
 
 
 
-# Bradford (Lab 9: BSA standards with quadratic standard curve)
+# Bradford (Lab 9, Bradford variant): BSA standards, quadratic curve
 BRADFORD = {
     "name": "Bradford",
-    "description": "BSA standard curve (quadratic), unknown protein "
-                   "concentration (Lab 9, Bradford method).",
+    "description": "BSA standard curve via Bradford assay, "
+                   "back-calculate unknown.",
+    "file_match": ["bradford"],
 
     "runtime_params": [
-        {
-            "key": "standard_concentrations",
-            "label": "Standard concentrations (mg/mL)",
-            "default": "",
-            "kind": "float_list",
-            "group": "BSA Standards",
-        },
+        {"key": "standard_concentrations",
+         "label": "Standard concentrations (mg/mL)", "default": "",
+         "kind": "float_list", "group": "BSA Standards"},
     ],
 
-    "operation_configs": {},
-    "_pipeline_unimplemented": True,
+    "build_operation_configs": lambda p: {
+        "standard": {
+            "source_group": ["raw", "average"],
+            "target_group": ["average", "corrected"],
+            "operation": ["mean", "blank_correction"],
+            "dilution_col": "standard_concentration",
+            "error_msg": "standard verification failed",
+        },
+        "graph": {
+            "source_group": ["corrected"],
+            "target_group": ["graph"],
+            "operation": ["graph"],
+            "dilution_col": "standard_concentration",
+            "source_target": "standard",
+            "set_y_int_to_0": "True",
+            "error_msg": "Graph verification failed",
+        },
+        "unknown": {
+            "source_group": ["dilution-factor", "raw", "average", "corrected"],
+            "target_group": ["dilution-factor", "average", "corrected", "valid"],
+            "operation": ["verify_int_type", "mean",
+                          "blank_correction", "verify_bradford_validation"],
+            "dilution_col": "standard_concentration",
+            "source_target": "standard",
+            "error_msg": "Unknown verification failed",
+        },
+        "concentration": {
+            "source_group": ["unknown"],
+            "target_group": ["concentration"],
+            "operation": ["concentration_series"],
+            "dilution_col": "unknown_dilution-factor",
+            "source_target": "unknown",
+            "error_msg": "concentration verification failed",
+        },
+    },
 
-    "build_stock_configs": lambda p: set(p["standard_concentrations"]),
+    "build_stock_configs": lambda p: set(),
     "build_dilution_configs": lambda p: set(),
     "build_pka_configs": lambda p: {},
+    "build_standard_configs": lambda p: set(p["standard_concentrations"]),
+    "build_assay_configs": lambda p: {},
+    "build_hh_configs": lambda p: {},
+    "build_multiplier_configs": lambda p: {},
+}
+
+
+
+# Optimal pH (Lab 10, optimal pH)
+OPTIMAL_PH = {
+    "name": "Optimal pH",
+    "description": "BglB enzyme kinetics across a pH series, "
+                   "identify pH of maximal initial velocity.",
+    "file_match": ["optimal"],
+
+    "runtime_params": [
+        {"key": "dilution_factors", "label": "Dilution Factor", "default": "",
+         "kind": "int_list", "group": "Dilution Factor"},
+        {"key": "stock_concentration", "label": "pNP stock (mM)", "default": "",
+         "kind": "float", "group": "Stock Concentrations"},
+        {"key": "assay_time", "label": "Assay time (min)", "default": "",
+         "kind": "float", "group": "Assay"},
+        {"key": "assay_volume", "label": "Assay volume (L)", "default": "",
+         "kind": "float", "group": "Assay"},
+        {"key": "assay_ph",
+         "label": "pH values tested (comma-separated)", "default": "",
+         "kind": "float_list", "group": "Assay"},
+    ],
+
+    "build_operation_configs": lambda p: {
+        "pnp": {
+            "source_group": ["stock-concentration", "dilution-factor",
+                             "stock-concentration"],
+            "target_group": ["stock-concentration", "dilution-factor",
+                             "diluted-concentration"],
+            "operation": ["verify_stock", "verify_dilution_factor",
+                          "verify_working"],
+            "dilution_col": "pnp_dilution-factor",
+            "error_msg": "pNP verification failed",
+        },
+        "standard": {
+            "source_group": ["average"],
+            "target_group": ["corrected"],
+            "operation": ["blank_correction"],
+            "dilution_col": "pnp_diluted-concentration",
+            "error_msg": "standard verification failed",
+        },
+        "graph": {
+            "source_group": ["corrected"],
+            "target_group": ["graph"],
+            "operation": ["graph"],
+            "dilution_col": "pnp_diluted-concentration",
+            "source_target": "standard",
+            "set_y_int_to_0": "True",
+            "error_msg": "Graph verification failed",
+        },
+        "enzyme": {
+            "source_group": ["average", "corrected"],
+            "target_group": ["corrected", "normalized"],
+            "operation": ["blank_correction", "divide_by_time"],
+            "dilution_col": "pnp_diluted-concentration",
+            "numerator": "enzyme_corrected_abs_1-3",
+            "denominator": p["assay_time"],
+            "error_msg": "Enzyme verification failed",
+        },
+        "concentration": {
+            "source_group": ["enzyme"],
+            "target_group": ["concentration"],
+            "operation": ["concentration_series"],
+            "error_msg": "concentration verification failed",
+        },
+        "assay": {
+            "source_group": ["concentration", "initial-velocity"],
+            "target_group": ["initial-velocity", "optimal-ph"],
+            "operation": ["verify_assay", "verify_greatest"],
+            "dilution_col": "assay_ph",
+            "error_msg": "Assay verification failed",
+        },
+    },
+
+    "build_stock_configs": lambda p: {p["stock_concentration"]},
+    "build_dilution_configs": lambda p: set(p["dilution_factors"]),
+    "build_pka_configs": lambda p: {},
+    "build_standard_configs": lambda p: set(),
+    "build_assay_configs": lambda p: {
+        "time": p["assay_time"],
+        "volume": p["assay_volume"],
+        "ph": p["assay_ph"],
+    },
+    "build_hh_configs": lambda p: {},
+    "build_multiplier_configs": lambda p: {},
+}
+
+
+
+# Specific Activity (Lab 10, specific activity)
+SPECIFIC_ACTIVITY = {
+    "name": "Specific Activity",
+    "description": "BglB stock dilutions, kinetic enzyme assay, "
+                   "Henderson-Hasselbalch for active fraction.",
+    "file_match": ["specific"],
+
+    "runtime_params": [
+        {"key": "dilution_factors", "label": "Dilution Factor", "default": "",
+         "kind": "int_list", "group": "Dilution Factor"},
+        {"key": "stock_concentration", "label": "BglB stock (mg/mL)",
+         "default": "", "kind": "float", "group": "Stock Concentrations"},
+        {"key": "molar_coefficient",
+         "label": "Molar extinction coefficient (M^-1 cm^-1)",
+         "default": "", "kind": "float", "group": "Assay"},
+        {"key": "pathlength", "label": "Pathlength (cm)", "default": "",
+         "kind": "float", "group": "Assay"},
+        {"key": "assay_volume", "label": "Assay volume (L)", "default": "",
+         "kind": "float", "group": "Assay"},
+        {"key": "volume_in_assay", "label": "Volume in assay (mL)",
+         "default": "", "kind": "float", "group": "Assay"},
+        {"key": "pka", "label": "pKa", "default": "",
+         "kind": "float", "group": "Henderson-Hasselbalch"},
+        {"key": "ph_assay", "label": "Assay pH", "default": "",
+         "kind": "float", "group": "Henderson-Hasselbalch"},
+    ],
+
+    "build_operation_configs": lambda p: {
+        "bglb": {
+            "source_group": ["stock-concentration", "dilution-factor",
+                             "stock-concentration", "diluted-concentration"],
+            "target_group": ["stock-concentration", "dilution-factor",
+                             "diluted-concentration", "mass"],
+            "operation": ["verify_stock", "verify_dilution_factor",
+                          "verify_working", "simple_multiply"],
+            "dilution_col": "bglb_dilution-factor",
+            "multiplier": p["volume_in_assay"],
+            "error_msg": "BGLB standard verification failed",
+        },
+        "enzyme": {
+            "source_group": ["raw", "average"],
+            "target_group": ["average", "corrected"],
+            "operation": ["mean", "blank_correction"],
+            "dilution_col": "bglb_diluted-concentration",
+            "error_msg": "Enzyme verification failed",
+        },
+        "assay": {
+            "source_group": ["concentration"],
+            "target_group": ["initial-velocity"],
+            "operation": ["verify_assay"],
+            "error_msg": "Assay verification failed",
+        },
+        "hh": {
+            "source_group": ["hh"],
+            "target_group": ["hh"],
+            "operation": ["verify_hh"],
+            "error_msg": "HH verification failed",
+        },
+        "concentration": {
+            "source_group": ["corrected", "pnpo-", "pnpoh"],
+            "target_group": ["pnpo-", "pnpoh", "pnp"],
+            "operation": ["concentration_series", "concentration_series",
+                          "concentration_series"],
+            "source_target": "enzyme",
+            "error_msg": "concentration verification failed",
+        },
+    },
+
+    "build_stock_configs": lambda p: {p["stock_concentration"]},
+    "build_dilution_configs": lambda p: set(p["dilution_factors"]),
+    "build_pka_configs": lambda p: {},
+    "build_standard_configs": lambda p: set(),
+    "build_assay_configs": lambda p: {
+        "molar-coefficient": p["molar_coefficient"],
+        "pathlength": p["pathlength"],
+        "volume": p["assay_volume"],
+    },
+    "build_hh_configs": lambda p: {
+        "pka": p["pka"],
+        "ph_assay": p["ph_assay"],
+    },
+    "build_multiplier_configs": lambda p: {
+        "volume": p["volume_in_assay"],
+    },
 }
 
 
@@ -239,12 +444,14 @@ ALL_LABS = {
     "Buffer": BUFFER,
     "A280": A280,
     "Bradford": BRADFORD,
+    "Optimal pH": OPTIMAL_PH,
+    "Specific Activity": SPECIFIC_ACTIVITY,
 }
 
 
 
 # helpers used by the GUI
-def parse_runtime_value(kind: str, raw: str):
+def parse_runtime_value(kind, raw):
     raw = raw.strip()
     if kind == "float":
         return float(raw)
@@ -259,8 +466,8 @@ def parse_runtime_value(kind: str, raw: str):
     raise ValueError(f"Unknown runtime param kind: {kind}")
 
 
-def build_configs_from_params(preset: dict, raw_params: dict[str, str]) -> dict:
-    parsed: dict = {}
+def build_configs_from_params(preset, raw_params):
+    parsed = {}
     for spec in preset["runtime_params"]:
         key = spec["key"]
         if key not in raw_params or raw_params[key].strip() == "":
@@ -268,16 +475,20 @@ def build_configs_from_params(preset: dict, raw_params: dict[str, str]) -> dict:
         parsed[key] = parse_runtime_value(spec["kind"], raw_params[key])
 
     return {
-        "operation_configs": preset["operation_configs"],
+        "operation_configs": preset["build_operation_configs"](parsed),
         "stock_configs": preset["build_stock_configs"](parsed),
         "dilution_configs": preset["build_dilution_configs"](parsed),
         "pka_configs": preset["build_pka_configs"](parsed),
+        "standard_configs": preset["build_standard_configs"](parsed),
+        "assay_configs": preset["build_assay_configs"](parsed),
+        "hh_configs": preset["build_hh_configs"](parsed),
+        "multiplier_configs": preset["build_multiplier_configs"](parsed),
     }
 
 
-def grouped_params(preset: dict) -> list[tuple[str, list[dict]]]:
-    order: list[str] = []
-    buckets: dict[str, list[dict]] = {}
+def grouped_params(preset):
+    order = []
+    buckets = {}
     for p in preset["runtime_params"]:
         g = p.get("group", "Parameters")
         if g not in buckets:
@@ -287,9 +498,9 @@ def grouped_params(preset: dict) -> list[tuple[str, list[dict]]]:
     return [(g, buckets[g]) for g in order]
 
 
-def is_pipeline_unimplemented(preset: dict) -> bool:
-    return bool(preset.get("_pipeline_unimplemented"))
+def output_basename(preset):
+    return "".join(c.lower() for c in preset["name"] if c.isalnum())
 
 
-def output_basename(preset: dict) -> str:
-    return preset["name"].lower()
+def file_match(preset):
+    return preset.get("file_match")
