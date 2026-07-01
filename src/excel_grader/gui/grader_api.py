@@ -24,6 +24,7 @@ def grade_file(
     pka_configs,
     standard_configs,
     assay_configs,
+    bglb_configs,
     hh_configs,
     multiplier_configs,
     separator="_",
@@ -37,11 +38,11 @@ def grade_file(
         pka_configs=pka_configs,
         standard_configs=standard_configs,
         assay_configs=assay_configs,
+        bglb_configs=bglb_configs,
         hh_configs=hh_configs,
         multiplier_configs=multiplier_configs,
     )
 
-    # uses logging.error(..., exc_info=True), goes to stderr
     buf = io.StringIO()
     success = True
     err = ""
@@ -70,16 +71,17 @@ def _inject_configs(
     pka_configs,
     standard_configs,
     assay_configs,
+    bglb_configs,
     hh_configs,
     multiplier_configs,
 ):
-    
     _configs_mod.OPERATION_CONFIGS = operation_configs
     _configs_mod.STOCK_CONFIGS = stock_configs
     _configs_mod.DILUTION_CONFIGS = dilution_configs
     _configs_mod.PKA_CONFIGS = pka_configs
     _configs_mod.STANDARD_CONFIGS = standard_configs
     _configs_mod.ASSAY_CONFIGS = assay_configs
+    _configs_mod.BGLB_CONFIGS = bglb_configs
     _configs_mod.HH_CONFIGS = hh_configs
     _configs_mod.MULTIPLIER_CONFIGS = multiplier_configs
 
@@ -87,7 +89,6 @@ def _inject_configs(
 
 
 def _run_one_file(xlsx_path, *, separator):
-    
     process_operation = _process_config_mod.process_operation
 
     print("-" * 80)
@@ -157,6 +158,7 @@ def grade_folder(
     pka_configs,
     standard_configs,
     assay_configs,
+    bglb_configs,
     hh_configs,
     multiplier_configs,
     output_basename="results",
@@ -177,7 +179,6 @@ def grade_folder(
         and not p.name.startswith("._")
     )
 
-    
     if file_match:
         tokens = [t.lower() for t in file_match]
         files = [f for f in files if any(t in f.name.lower() for t in tokens)]
@@ -193,6 +194,7 @@ def grade_folder(
             pka_configs=pka_configs,
             standard_configs=standard_configs,
             assay_configs=assay_configs,
+            bglb_configs=bglb_configs,
             hh_configs=hh_configs,
             multiplier_configs=multiplier_configs,
         )

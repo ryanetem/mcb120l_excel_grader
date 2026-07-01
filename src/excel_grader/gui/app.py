@@ -24,12 +24,13 @@ class GraderApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title(APP_TITLE)
-        self.geometry("720x780")
+        self.geometry("720x820")
         self.minsize(640, 600)
 
         self._log_queue = queue.Queue()
 
         self._param_vars = {}
+        self._param_kinds = {}
         self._input_dir = tk.StringVar()
         self._output_dir = tk.StringVar()
         self._section = tk.StringVar()
@@ -123,8 +124,18 @@ class GraderApp(tk.Tk):
         for child in self._config_container.winfo_children():
             child.destroy()
         self._param_vars.clear()
+        self._param_kinds.clear()
 
-        for i, (group_name, params) in enumerate(grouped_params(preset)):
+        groups = grouped_params(preset)
+        if not groups:
+            note = ttk.Label(
+                self._config_container,
+                text="No fixed values to enter for this lab.",
+            )
+            note.grid(row=0, column=0, sticky="w")
+            return
+
+        for i, (group_name, params) in enumerate(groups):
             section = ttk.LabelFrame(
                 self._config_container, text=group_name, padding=SECTION_PAD
             )
@@ -135,14 +146,25 @@ class GraderApp(tk.Tk):
             section.columnconfigure(1, weight=1)
 
             for row, spec in enumerate(params):
-                ttk.Label(section, text=spec["label"] + ":").grid(
-                    row=row, column=0, sticky="w", pady=2
-                )
-                var = tk.StringVar(value=spec.get("default", ""))
-                ttk.Entry(section, textvariable=var).grid(
-                    row=row, column=1, sticky="ew", padx=PAD, pady=2
-                )
-                self._param_vars[spec["key"]] = var
+                kind = spec["kind"]
+                key = spec["key"]
+                self._param_kinds[key] = kind
+
+                if kind == "bool_yint":
+                    var = tk.BooleanVar(value=bool(spec.get("default", True)))
+                    ttk.Checkbutton(
+                        section, text=spec["label"], variable=var
+                    ).grid(row=row, column=0, columnspan=2, sticky="w", pady=2)
+                    self._param_vars[key] = var
+                else:
+                    ttk.Label(section, text=spec["label"] + ":").grid(
+                        row=row, column=0, sticky="w", pady=2
+                    )
+                    var = tk.StringVar(value=spec.get("default", ""))
+                    ttk.Entry(section, textvariable=var).grid(
+                        row=row, column=1, sticky="ew", padx=PAD, pady=2
+                    )
+                    self._param_vars[key] = var
 
     def _pick_input_dir(self):
         d = filedialog.askdirectory(title="Select folder of student .xlsx files")
@@ -197,7 +219,9 @@ class GraderApp(tk.Tk):
                 )
             return
 
-        raw_params = {k: v.get() for k, v in self._param_vars.items()}
+        raw_params = {}
+        for key, var in self._param_vars.items():
+            raw_params[key] = var.get()
         try:
             configs = build_configs_from_params(preset, raw_params)
         except Exception as e:  # noqa: BLE001
@@ -241,7 +265,7 @@ class GraderApp(tk.Tk):
             err = len(results) - ok
             self._log_queue.put(
                 f"\nDone. {ok} succeeded, {err} failed. "
-                f"Wrote results.txt and summary.csv to {out_dir}"
+                f"Wrote results and summary to {out_dir}"
             )
         except Exception as e:  # noqa: BLE001
             import traceback as _tb

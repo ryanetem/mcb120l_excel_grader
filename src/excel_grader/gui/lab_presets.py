@@ -1,25 +1,19 @@
 from __future__ import annotations
 
 
-# Color (dye serial dilutions)
 COLOR = {
     "name": "Color",
-    "description": "Dye serial dilutions, raw absorbance averages, "
-                   "blank correction.",
-
+    "file_match": None,
     "runtime_params": [
-        {"key": "dilution_factors_1_3", "label": "1-3", "default": "",
-         "kind": "int_list", "group": "Dilution Factor"},
-        {"key": "dilution_factors_4_6", "label": "4-6", "default": "",
-         "kind": "int_list", "group": "Dilution Factor"},
-        {"key": "stock_red", "label": "Red", "default": "",
-         "kind": "float", "group": "Stock Concentrations"},
-        {"key": "stock_blue", "label": "Blue", "default": "",
-         "kind": "float", "group": "Stock Concentrations"},
-        {"key": "stock_yellow", "label": "Yellow", "default": "",
-         "kind": "float", "group": "Stock Concentrations"},
+        {"key": "stock_chosen", "label": "Stock chosen", "default": "",
+         "kind": "text", "group": "Stock"},
+        {"key": "stock_concentration", "label": "Stock concentration (%)",
+         "default": "", "kind": "float", "group": "Stock"},
+        {"key": "yint_1_3", "label": "Set y-intercept to 0 (1-3)",
+         "default": True, "kind": "bool_yint", "group": "Graph"},
+        {"key": "yint_4_6", "label": "Set y-intercept to 0 (4-6)",
+         "default": True, "kind": "bool_yint", "group": "Graph"},
     ],
-
     "build_operation_configs": lambda p: {
         "stock": {
             "source_group": ["stock"],
@@ -47,39 +41,46 @@ COLOR = {
             "dilution_col": "color_concentration_1-3",
             "error_msg": "corrected verification failed",
         },
+        "graph": {
+            "source_group": ["corrected"],
+            "target_group": ["graph"],
+            "operation": ["graph"],
+            "dilution_col": "color_concentration_1-3",
+            "set_y_int_to_0": p["yint_1_3"],
+            "error_msg": "Graph verification failed",
+        },
     },
-
     "build_stock_configs": lambda p: {
-        "red": p["stock_red"],
-        "blue": p["stock_blue"],
-        "yellow": p["stock_yellow"],
+        "chosen": p["stock_chosen"],
+        p["stock_chosen"]: p["stock_concentration"],
     },
-    "build_dilution_configs": lambda p: (
-        set(p["dilution_factors_1_3"]) | set(p["dilution_factors_4_6"])
-    ),
+    "build_dilution_configs": lambda p: set(),
     "build_pka_configs": lambda p: {},
     "build_standard_configs": lambda p: set(),
     "build_assay_configs": lambda p: {},
+    "build_bglb_configs": lambda p: {},
     "build_hh_configs": lambda p: {},
     "build_multiplier_configs": lambda p: {},
 }
 
 
-# Buffer (pNP enzyme kinetics, HH)
 BUFFER = {
     "name": "Buffer",
-    "description": "pNP enzyme kinetics, working dilutions, "
-                   "graph, Henderson-Hasselbalch.",
-
+    "file_match": None,
     "runtime_params": [
-        {"key": "dilution_factors", "label": "Dilution Factor", "default": "",
-         "kind": "int_list", "group": "Dilution Factor"},
-        {"key": "stock_concentration", "label": "pNP stock (mM)", "default": "",
-         "kind": "float", "group": "Stock Concentrations"},
-        {"key": "pka_pnp", "label": "pKa (pNP)", "default": "",
-         "kind": "float", "group": "Henderson-Hasselbalch"},
+        {"key": "stock_concentration", "label": "pNP stock (mM)",
+         "default": "", "kind": "float", "group": "Stock"},
+        {"key": "dilution_factors", "label": "Dilution factor",
+         "default": "", "kind": "int_list", "group": "Dilution"},
+        {"key": "yint_naoh", "label": "Set y-intercept to 0 (NaOH)",
+         "default": True, "kind": "bool_yint", "group": "Graph"},
+        {"key": "yint_acetate", "label": "Set y-intercept to 0 (Acetate)",
+         "default": True, "kind": "bool_yint", "group": "Graph"},
+        {"key": "yint_phosphate", "label": "Set y-intercept to 0 (Phosphate)",
+         "default": True, "kind": "bool_yint", "group": "Graph"},
+        {"key": "yint_tris", "label": "Set y-intercept to 0 (Tris)",
+         "default": True, "kind": "bool_yint", "group": "Graph"},
     ],
-
     "build_operation_configs": lambda p: {
         "stock-concentration": {
             "source_group": ["stock-concentration"],
@@ -118,7 +119,7 @@ BUFFER = {
             "target_group": ["graph"],
             "operation": ["graph"],
             "dilution_col": "pnp_diluted-concentration",
-            "set_y_int_to_0": "True",
+            "set_y_int_to_0": p["yint_naoh"],
             "error_msg": "Graph verification failed",
         },
         "hh": {
@@ -129,33 +130,26 @@ BUFFER = {
             "error_msg": "Henderson-Hasselbalch verification failed",
         },
     },
-
     "build_stock_configs": lambda p: {p["stock_concentration"]},
     "build_dilution_configs": lambda p: set(p["dilution_factors"]),
-    "build_pka_configs": lambda p: {"pnp": p["pka_pnp"]},
+    "build_pka_configs": lambda p: {"pnp": 7.15},
     "build_standard_configs": lambda p: set(),
     "build_assay_configs": lambda p: {},
+    "build_bglb_configs": lambda p: {},
     "build_hh_configs": lambda p: {},
     "build_multiplier_configs": lambda p: {},
 }
 
 
-
-# A280 (Lab 9, A280): BSA standards, linear standard curve
 A280 = {
     "name": "A280",
-    "description": "BSA standard curve via A280, back-calculate unknown.",
     "file_match": ["a280"],
-
     "runtime_params": [
-        {"key": "standard_concentrations",
-         "label": "Standard concentrations (mg/mL)", "default": "",
-         "kind": "float_list", "group": "BSA Standards"},
-        {"key": "dilution_factors",
-         "label": "Dilution Factor", "default": "",
-         "kind": "int_list", "group": "Unknown Sample"},
+        {"key": "yint", "label": "Set y-intercept to 0",
+         "default": True, "kind": "bool_yint", "group": "Graph"},
+        {"key": "dilution_factors", "label": "Dilution factor",
+         "default": "", "kind": "int_list", "group": "Unknown"},
     ],
-
     "build_operation_configs": lambda p: {
         "standard": {
             "source_group": ["standard", "raw", "average"],
@@ -170,7 +164,7 @@ A280 = {
             "operation": ["graph"],
             "dilution_col": "standard_concentration",
             "source_target": "standard",
-            "set_y_int_to_0": "True",
+            "set_y_int_to_0": p["yint"],
             "error_msg": "Graph verification failed",
         },
         "unknown": {
@@ -192,31 +186,24 @@ A280 = {
             "error_msg": "concentration verification failed",
         },
     },
-
     "build_stock_configs": lambda p: set(),
     "build_dilution_configs": lambda p: set(p["dilution_factors"]),
     "build_pka_configs": lambda p: {},
-    "build_standard_configs": lambda p: set(p["standard_concentrations"]),
+    "build_standard_configs": lambda p: set(),
     "build_assay_configs": lambda p: {},
+    "build_bglb_configs": lambda p: {},
     "build_hh_configs": lambda p: {},
     "build_multiplier_configs": lambda p: {},
 }
 
 
-
-# Bradford (Lab 9, Bradford variant): BSA standards, quadratic curve
 BRADFORD = {
     "name": "Bradford",
-    "description": "BSA standard curve via Bradford assay, "
-                   "back-calculate unknown.",
     "file_match": ["bradford"],
-
     "runtime_params": [
-        {"key": "standard_concentrations",
-         "label": "Standard concentrations (mg/mL)", "default": "",
-         "kind": "float_list", "group": "BSA Standards"},
+        {"key": "yint", "label": "Set y-intercept to 0 (constant c)",
+         "default": True, "kind": "bool_yint", "group": "Graph"},
     ],
-
     "build_operation_configs": lambda p: {
         "standard": {
             "source_group": ["raw", "average"],
@@ -231,7 +218,7 @@ BRADFORD = {
             "operation": ["graph"],
             "dilution_col": "standard_concentration",
             "source_target": "standard",
-            "set_y_int_to_0": "True",
+            "set_y_int_to_0": p["yint"],
             "error_msg": "Graph verification failed",
         },
         "unknown": {
@@ -252,39 +239,32 @@ BRADFORD = {
             "error_msg": "concentration verification failed",
         },
     },
-
     "build_stock_configs": lambda p: set(),
     "build_dilution_configs": lambda p: set(),
     "build_pka_configs": lambda p: {},
-    "build_standard_configs": lambda p: set(p["standard_concentrations"]),
+    "build_standard_configs": lambda p: set(),
     "build_assay_configs": lambda p: {},
+    "build_bglb_configs": lambda p: {},
     "build_hh_configs": lambda p: {},
     "build_multiplier_configs": lambda p: {},
 }
 
 
-
-# Optimal pH (Lab 10, optimal pH)
 OPTIMAL_PH = {
     "name": "Optimal pH",
-    "description": "BglB enzyme kinetics across a pH series, "
-                   "identify pH of maximal initial velocity.",
     "file_match": ["optimal"],
-
     "runtime_params": [
-        {"key": "dilution_factors", "label": "Dilution Factor", "default": "",
-         "kind": "int_list", "group": "Dilution Factor"},
-        {"key": "stock_concentration", "label": "pNP stock (mM)", "default": "",
-         "kind": "float", "group": "Stock Concentrations"},
-        {"key": "assay_time", "label": "Assay time (min)", "default": "",
-         "kind": "float", "group": "Assay"},
-        {"key": "assay_volume", "label": "Assay volume (L)", "default": "",
-         "kind": "float", "group": "Assay"},
-        {"key": "assay_ph",
-         "label": "pH values tested (comma-separated)", "default": "",
-         "kind": "float_list", "group": "Assay"},
+        {"key": "stock_concentration", "label": "pNP stock (mM)",
+         "default": "", "kind": "float", "group": "Stock"},
+        {"key": "dilution_factors", "label": "Dilution factor",
+         "default": "", "kind": "int_list", "group": "Dilution"},
+        {"key": "yint", "label": "Set y-intercept to 0",
+         "default": True, "kind": "bool_yint", "group": "Graph"},
+        {"key": "assay_time", "label": "Assay time (min)",
+         "default": "", "kind": "float", "group": "Assay"},
+        {"key": "assay_volume", "label": "Assay volume (L)",
+         "default": "", "kind": "float", "group": "Assay"},
     ],
-
     "build_operation_configs": lambda p: {
         "pnp": {
             "source_group": ["stock-concentration", "dilution-factor",
@@ -309,7 +289,7 @@ OPTIMAL_PH = {
             "operation": ["graph"],
             "dilution_col": "pnp_diluted-concentration",
             "source_target": "standard",
-            "set_y_int_to_0": "True",
+            "set_y_int_to_0": p["yint"],
             "error_msg": "Graph verification failed",
         },
         "enzyme": {
@@ -335,7 +315,6 @@ OPTIMAL_PH = {
             "error_msg": "Assay verification failed",
         },
     },
-
     "build_stock_configs": lambda p: {p["stock_concentration"]},
     "build_dilution_configs": lambda p: set(p["dilution_factors"]),
     "build_pka_configs": lambda p: {},
@@ -343,41 +322,34 @@ OPTIMAL_PH = {
     "build_assay_configs": lambda p: {
         "time": p["assay_time"],
         "volume": p["assay_volume"],
-        "ph": p["assay_ph"],
+        "magnitude": 1000,
     },
+    "build_bglb_configs": lambda p: {},
     "build_hh_configs": lambda p: {},
     "build_multiplier_configs": lambda p: {},
 }
 
 
-
-# Specific Activity (Lab 10, specific activity)
 SPECIFIC_ACTIVITY = {
     "name": "Specific Activity",
-    "description": "BglB stock dilutions, kinetic enzyme assay, "
-                   "Henderson-Hasselbalch for active fraction.",
     "file_match": ["specific"],
-
     "runtime_params": [
-        {"key": "dilution_factors", "label": "Dilution Factor", "default": "",
-         "kind": "int_list", "group": "Dilution Factor"},
         {"key": "stock_concentration", "label": "BglB stock (mg/mL)",
-         "default": "", "kind": "float", "group": "Stock Concentrations"},
-        {"key": "molar_coefficient",
-         "label": "Molar extinction coefficient (M^-1 cm^-1)",
-         "default": "", "kind": "float", "group": "Assay"},
-        {"key": "pathlength", "label": "Pathlength (cm)", "default": "",
-         "kind": "float", "group": "Assay"},
-        {"key": "assay_volume", "label": "Assay volume (L)", "default": "",
-         "kind": "float", "group": "Assay"},
+         "default": "", "kind": "float", "group": "Stock"},
         {"key": "volume_in_assay", "label": "Volume in assay (mL)",
+         "default": "", "kind": "float", "group": "Stock"},
+        {"key": "molar_coefficient",
+         "label": "Molar extinction coefficient (/Mcm)",
+         "default": "", "kind": "float", "group": "Assay"},
+        {"key": "pathlength", "label": "Pathlength (cm)",
+         "default": "", "kind": "float", "group": "Assay"},
+        {"key": "assay_volume", "label": "Assay volume (L)",
          "default": "", "kind": "float", "group": "Assay"},
         {"key": "pka", "label": "pKa", "default": "",
          "kind": "float", "group": "Henderson-Hasselbalch"},
         {"key": "ph_assay", "label": "Assay pH", "default": "",
          "kind": "float", "group": "Henderson-Hasselbalch"},
     ],
-
     "build_operation_configs": lambda p: {
         "bglb": {
             "source_group": ["stock-concentration", "dilution-factor",
@@ -418,16 +390,17 @@ SPECIFIC_ACTIVITY = {
             "error_msg": "concentration verification failed",
         },
     },
-
     "build_stock_configs": lambda p: {p["stock_concentration"]},
-    "build_dilution_configs": lambda p: set(p["dilution_factors"]),
+    "build_dilution_configs": lambda p: set(),
     "build_pka_configs": lambda p: {},
     "build_standard_configs": lambda p: set(),
     "build_assay_configs": lambda p: {
         "molar-coefficient": p["molar_coefficient"],
         "pathlength": p["pathlength"],
         "volume": p["assay_volume"],
+        "magnitude": 1000000,
     },
+    "build_bglb_configs": lambda p: {},
     "build_hh_configs": lambda p: {
         "pka": p["pka"],
         "ph_assay": p["ph_assay"],
@@ -438,7 +411,59 @@ SPECIFIC_ACTIVITY = {
 }
 
 
-# registry the GUI reads, order is dropdown order
+PURIFICATION = {
+    "name": "Purification",
+    "file_match": None,
+    "runtime_params": [],
+    "build_operation_configs": lambda p: {
+        "fraction": {
+            "source_group": ["specific-activity"],
+            "target_group": ["specific-activity"],
+            "numerator": "kinetics_total-activity",
+            "denominator": "bradford_total_protein",
+            "operation": ["divide_columns"],
+            "error_msg": "Fraction verification failed",
+        },
+        "coomassie": {
+            "source_group": ["coomassie"],
+            "target_group": ["coomassie"],
+            "dilution_col": "fraction_volume",
+            "operation": ["verify_coomassie_yield"],
+            "error_msg": "Coomassie yield verification failed",
+        },
+        "kinetics": {
+            "source_group": ["kinetics"],
+            "target_group": ["kinetics"],
+            "dilution_col": "fraction_volume",
+            "operation": ["verify_kinetics_yield"],
+            "error_msg": "Kinetics yield verification failed",
+        },
+        "bradford": {
+            "source_group": ["concentration"],
+            "target_group": ["total"],
+            "multiplier": "fraction_volume",
+            "operation": ["multiply_columns"],
+            "error_msg": "Bradford verification failed",
+        },
+        "fold": {
+            "source_group": ["specific-activity"],
+            "target_group": ["purification"],
+            "source_target": "fraction",
+            "operation": ["verify_fold_purification"],
+            "error_msg": "Fold purification verification failed",
+        },
+    },
+    "build_stock_configs": lambda p: set(),
+    "build_dilution_configs": lambda p: set(),
+    "build_pka_configs": lambda p: {},
+    "build_standard_configs": lambda p: set(),
+    "build_assay_configs": lambda p: {},
+    "build_bglb_configs": lambda p: {},
+    "build_hh_configs": lambda p: {},
+    "build_multiplier_configs": lambda p: {},
+}
+
+
 ALL_LABS = {
     "Color": COLOR,
     "Buffer": BUFFER,
@@ -446,12 +471,13 @@ ALL_LABS = {
     "Bradford": BRADFORD,
     "Optimal pH": OPTIMAL_PH,
     "Specific Activity": SPECIFIC_ACTIVITY,
+    "Purification": PURIFICATION,
 }
 
 
-
-# helpers used by the GUI
 def parse_runtime_value(kind, raw):
+    if kind == "bool_yint":
+        return bool(raw)
     raw = raw.strip()
     if kind == "float":
         return float(raw)
@@ -470,9 +496,13 @@ def build_configs_from_params(preset, raw_params):
     parsed = {}
     for spec in preset["runtime_params"]:
         key = spec["key"]
-        if key not in raw_params or raw_params[key].strip() == "":
+        kind = spec["kind"]
+        if kind == "bool_yint":
+            parsed[key] = bool(raw_params.get(key, spec.get("default", True)))
+            continue
+        if key not in raw_params or str(raw_params[key]).strip() == "":
             raise ValueError(f"'{spec['label']}' is required")
-        parsed[key] = parse_runtime_value(spec["kind"], raw_params[key])
+        parsed[key] = parse_runtime_value(kind, raw_params[key])
 
     return {
         "operation_configs": preset["build_operation_configs"](parsed),
@@ -481,6 +511,7 @@ def build_configs_from_params(preset, raw_params):
         "pka_configs": preset["build_pka_configs"](parsed),
         "standard_configs": preset["build_standard_configs"](parsed),
         "assay_configs": preset["build_assay_configs"](parsed),
+        "bglb_configs": preset["build_bglb_configs"](parsed),
         "hh_configs": preset["build_hh_configs"](parsed),
         "multiplier_configs": preset["build_multiplier_configs"](parsed),
     }
