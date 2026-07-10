@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-
+# Color (dye serial dilutions)
 COLOR = {
     "name": "Color",
     "file_match": None,
@@ -64,6 +64,7 @@ COLOR = {
 }
 
 
+# Buffer (pNP enzyme kinetics, HH)
 BUFFER = {
     "name": "Buffer",
     "file_match": None,
@@ -141,6 +142,7 @@ BUFFER = {
 }
 
 
+# A280 (Lab 9, A280): BSA standards, linear standard curve
 A280 = {
     "name": "A280",
     "file_match": ["a280"],
@@ -197,6 +199,7 @@ A280 = {
 }
 
 
+# Bradford (Lab 9, Bradford variant): BSA standards, quadratic curve
 BRADFORD = {
     "name": "Bradford",
     "file_match": ["bradford"],
@@ -250,6 +253,7 @@ BRADFORD = {
 }
 
 
+# Optimal pH (Lab 10, optimal pH)
 OPTIMAL_PH = {
     "name": "Optimal pH",
     "file_match": ["optimal"],
@@ -330,6 +334,7 @@ OPTIMAL_PH = {
 }
 
 
+# Specific Activity (Lab 10, specific activity)
 SPECIFIC_ACTIVITY = {
     "name": "Specific Activity",
     "file_match": ["specific"],
@@ -410,7 +415,7 @@ SPECIFIC_ACTIVITY = {
     },
 }
 
-
+# Lab 12-13 Purification
 PURIFICATION = {
     "name": "Purification",
     "file_match": None,
@@ -464,6 +469,110 @@ PURIFICATION = {
 }
 
 
+# Kinetics (Lab 14)
+KINETICS = {
+    "name": "Kinetics",
+    "file_match": None,
+    "runtime_params": [
+        {"key": "stock_concentration", "label": "pNP stock (mM)",
+         "default": "", "kind": "float", "group": "Stock"},
+        {"key": "yint", "label": "Set y-intercept to 0",
+         "default": True, "kind": "bool_yint", "group": "Graph"},
+        {"key": "pnpg_concentration", "label": "pNPG diluted concentration (mM)",
+         "default": "", "kind": "float", "group": "pNPG"},
+        {"key": "assay_volume", "label": "Assay volume (L)",
+         "default": "", "kind": "float", "group": "Assay"},
+        {"key": "volume_in_assay", "label": "Volume in assay (mL)",
+         "default": "", "kind": "float", "group": "Assay"},
+    ],
+    "build_operation_configs": lambda p: {
+        "pnp": {
+            "source_group": ["stock-concentration", "dilution-factor",
+                             "stock-concentration"],
+            "target_group": ["stock-concentration", "dilution-factor",
+                             "diluted-concentration"],
+            "operation": ["verify_stock", "verify_dilution_factor",
+                          "verify_working"],
+            "dilution_col": "pnp_dilution-factor",
+            "error_msg": "pNP verification failed",
+        },
+        "standard": {
+            "source_group": ["average"],
+            "target_group": ["corrected"],
+            "operation": ["blank_correction"],
+            "dilution_col": "pnp_diluted-concentration",
+            "error_msg": "standard verification failed",
+        },
+        "graph": {
+            "source_group": ["corrected"],
+            "target_group": ["graph"],
+            "operation": ["graph"],
+            "dilution_col": "pnp_diluted-concentration",
+            "source_target": "standard",
+            "set_y_int_to_0": p["yint"],
+            "error_msg": "Graph verification failed",
+        },
+        "pnpg": {
+            "source_group": ["diluted-concentration"],
+            "target_group": ["diluted-concentration"],
+            "operation": ["custom_conc"],
+            "error_msg": "PNPG custom concentration verification failed",
+        },
+        "mutant": {
+            "source_group": ["mutant", "average"],
+            "target_group": ["average", "corrected"],
+            "operation": ["mean", "blank_correction"],
+            "dilution_col": "pnp_dilution-factor",
+            "source_target": "no-enzyme",
+            "error_msg": "Mutant verification failed",
+        },
+        "concentration": {
+            "source_group": ["mutant"],
+            "target_group": ["concentration"],
+            "operation": ["concentration_series"],
+            "error_msg": "concentration verification failed",
+        },
+        "assay": {
+            "source_group": ["concentration"],
+            "target_group": ["initial-velocity"],
+            "operation": ["verify_assay"],
+            "error_msg": "Assay verification failed",
+        },
+        "bglb": {
+            "source_group": ["bglb", "bglb", "diluted-concentration",
+                             "mass", "specific-activity"],
+            "target_group": ["bglb", "diluted-concentration", "mass",
+                             "specific-activity", "kcat"],
+            "numerator": "bglb_stock-concentration",
+            "denominator": "bglb_dilution-factor",
+            "multiplier": p["volume_in_assay"],
+            "operation": ["verify_bglb", "divide_columns", "simple_multiply",
+                          "verify_bglb_sa", "verify_bglb_kcat"],
+            "error_msg": "Bgl-B verification failed",
+        },
+    },
+    "build_stock_configs": lambda p: {p["stock_concentration"]},
+    "build_dilution_configs": lambda p: set(),
+    "build_pka_configs": lambda p: {},
+    "build_standard_configs": lambda p: set(),
+    "build_assay_configs": lambda p: {
+        "volume": p["assay_volume"],
+        "magnitude": 1000,
+    },
+    "build_bglb_configs": lambda p: {
+        "stock-concentration": 0.48,
+        "dilution-factor": 10,
+        "volume_in-assay": p["volume_in_assay"],
+        "molecular-weight": 51562,
+        "magnitude": 1000,
+    },
+    "build_hh_configs": lambda p: {},
+    "build_multiplier_configs": lambda p: {
+        "volume": p["volume_in_assay"],
+    },
+}
+
+# registry the GUI reads, order is dropdown order
 ALL_LABS = {
     "Color": COLOR,
     "Buffer": BUFFER,
@@ -472,9 +581,11 @@ ALL_LABS = {
     "Optimal pH": OPTIMAL_PH,
     "Specific Activity": SPECIFIC_ACTIVITY,
     "Purification": PURIFICATION,
+    "Kinetics": KINETICS,
 }
 
 
+# helpers used by the GUI
 def parse_runtime_value(kind, raw):
     if kind == "bool_yint":
         return bool(raw)

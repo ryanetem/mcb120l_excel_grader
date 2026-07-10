@@ -43,6 +43,7 @@ def grade_file(
         multiplier_configs=multiplier_configs,
     )
 
+    # uses logging.error(..., exc_info=True), goes to stderr
     buf = io.StringIO()
     success = True
     err = ""
