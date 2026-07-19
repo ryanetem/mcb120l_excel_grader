@@ -415,6 +415,7 @@ SPECIFIC_ACTIVITY = {
     },
 }
 
+
 # Lab 12-13 Purification
 PURIFICATION = {
     "name": "Purification",
@@ -572,6 +573,49 @@ KINETICS = {
     },
 }
 
+# Lab 15 (Thermal Stability)
+THERMAL = {
+    "name": "Thermal Stability",
+    "file_match": None,
+    "runtime_params": [
+        {"key": "temp_low", "label": "Incubation temp low (C)",
+         "default": "", "kind": "float", "group": "Incubation"},
+        {"key": "temp_high", "label": "Incubation temp high (C)",
+         "default": "", "kind": "float", "group": "Incubation"},
+    ],
+    "build_operation_configs": lambda p: {
+        "incubation": {
+            "source_group": ["temperature"],
+            "target_group": ["temperature"],
+            "operation": ["verify_range"],
+            "error_msg": "Incubation temp verification failed",
+        },
+        "mutant": {
+            "source_group": ["raw", "average"],
+            "target_group": ["average", "normalized"],
+            "dilution_col": "incubation_temperature",
+            "operation": ["mean", "temp_norm"],
+            "error_msg": "Mutant verification failed",
+        },
+        "wildtype": {
+            "source_group": ["raw", "average"],
+            "target_group": ["average", "normalized"],
+            "dilution_col": "incubation_temperature",
+            "operation": ["mean", "temp_norm"],
+            "error_msg": "Wildtype verification failed",
+        },
+    },
+    "build_stock_configs": lambda p: set(),
+    "build_dilution_configs": lambda p: set(),
+    "build_pka_configs": lambda p: {},
+    "build_standard_configs": lambda p: {p["temp_low"], p["temp_high"]},
+    "build_assay_configs": lambda p: {},
+    "build_bglb_configs": lambda p: {},
+    "build_hh_configs": lambda p: {},
+    "build_multiplier_configs": lambda p: {},
+}
+
+
 # registry the GUI reads, order is dropdown order
 ALL_LABS = {
     "Color": COLOR,
@@ -582,6 +626,7 @@ ALL_LABS = {
     "Specific Activity": SPECIFIC_ACTIVITY,
     "Purification": PURIFICATION,
     "Kinetics": KINETICS,
+    "Thermal Stability": THERMAL,
 }
 
 
