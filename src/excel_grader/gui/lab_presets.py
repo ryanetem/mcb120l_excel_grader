@@ -81,6 +81,8 @@ BUFFER = {
          "default": True, "kind": "bool_yint", "group": "Graph"},
         {"key": "yint_tris", "label": "Set y-intercept to 0 (Tris)",
          "default": True, "kind": "bool_yint", "group": "Graph"},
+        {"key": "pka", "label": "pKa (pNP)", "default": "",
+         "kind": "float", "group": "Henderson-Hasselbalch"},
     ],
     "build_operation_configs": lambda p: {
         "stock-concentration": {
@@ -133,7 +135,7 @@ BUFFER = {
     },
     "build_stock_configs": lambda p: {p["stock_concentration"]},
     "build_dilution_configs": lambda p: set(p["dilution_factors"]),
-    "build_pka_configs": lambda p: {"pnp": 7.15},
+    "build_pka_configs": lambda p: {"pnp": p["pka"]},
     "build_standard_configs": lambda p: set(),
     "build_assay_configs": lambda p: {},
     "build_bglb_configs": lambda p: {},
@@ -420,7 +422,10 @@ SPECIFIC_ACTIVITY = {
 PURIFICATION = {
     "name": "Purification",
     "file_match": None,
-    "runtime_params": [],
+    "runtime_params": [
+        {"key": "coomassie_volume", "label": "Coomassie volume (mL)",
+         "default": "", "kind": "float", "group": "Coomassie"},
+    ],
     "build_operation_configs": lambda p: {
         "fraction": {
             "source_group": ["specific-activity"],
@@ -572,6 +577,7 @@ KINETICS = {
         "volume": p["volume_in_assay"],
     },
 }
+
 
 # Lab 15 (Thermal Stability)
 THERMAL = {
