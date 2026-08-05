@@ -10,6 +10,10 @@ from pathlib import Path
 import polars as pl
 import polars.selectors as cs
 
+import builtins as _builtins
+import typing as _typing
+_builtins.Optional = _typing.Optional
+
 from .. import configs as _configs_mod
 from .. import process_config as _process_config_mod
 from .. import utils as _utils
@@ -43,7 +47,6 @@ def grade_file(
         multiplier_configs=multiplier_configs,
     )
 
-    # uses logging.error(..., exc_info=True), goes to stderr
     buf = io.StringIO()
     success = True
     err = ""
