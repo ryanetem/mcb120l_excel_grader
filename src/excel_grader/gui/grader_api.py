@@ -10,9 +10,11 @@ from pathlib import Path
 import polars as pl
 import polars.selectors as cs
 
+
 import builtins as _builtins
 import typing as _typing
 _builtins.Optional = _typing.Optional
+
 
 from .. import configs as _configs_mod
 from .. import process_config as _process_config_mod
@@ -33,6 +35,7 @@ def grade_file(
     multiplier_configs,
     separator="_",
 ):
+    
     xlsx_path = Path(xlsx_path)
 
     _inject_configs(
@@ -47,6 +50,7 @@ def grade_file(
         multiplier_configs=multiplier_configs,
     )
 
+    
     buf = io.StringIO()
     success = True
     err = ""
@@ -55,6 +59,7 @@ def grade_file(
         try:
             _run_one_file(xlsx_path, separator=separator)
         except Exception as e:  # noqa: BLE001
+           
             success = False
             err = f"{type(e).__name__}: {e}"
             traceback.print_exc()
@@ -79,6 +84,8 @@ def _inject_configs(
     hh_configs,
     multiplier_configs,
 ):
+    # Overwrite the pipeline's nine config constants with this lab's values.
+    
     _configs_mod.OPERATION_CONFIGS = operation_configs
     _configs_mod.STOCK_CONFIGS = stock_configs
     _configs_mod.DILUTION_CONFIGS = dilution_configs
@@ -89,21 +96,26 @@ def _inject_configs(
     _configs_mod.HH_CONFIGS = hh_configs
     _configs_mod.MULTIPLIER_CONFIGS = multiplier_configs
 
+
     importlib.reload(_process_config_mod)
 
 
 def _run_one_file(xlsx_path, *, separator):
+    
     process_operation = _process_config_mod.process_operation
 
     print("-" * 80)
     print(f"\nLoaded: {xlsx_path}")
 
+    
     df = pl.read_excel(xlsx_path)
+
     df = df.rename({col: col.lower() for col in df.columns})
     df = df.rename({col: re.sub(r"_\(.*\)", "", col) for col in df.columns})
 
     print(f"Shape: {df.shape[0]} rows x {df.shape[1]} columns")
 
+    # Nest columns by their name prefix into parent -> child groups.
     column_groups = _utils.group_columns_by_first_then_second(df, separator=separator)
     print(column_groups)
 
@@ -111,11 +123,13 @@ def _run_one_file(xlsx_path, *, separator):
     print("EXECUTING VERIFICATION PIPELINE")
     print("=" * 80)
 
+    # Re-read after the reload so we're using the new injected configs
     operation_configs = _configs_mod.OPERATION_CONFIGS
 
     for i, (parent_group, child_groups) in enumerate(column_groups.items()):
         print(f"\n--- Step {i}: {parent_group} ---\n")
 
+        # Exact match
         parent_config = next(
             (cfg for key, cfg in operation_configs.items() if key == parent_group),
             None,
@@ -130,6 +144,7 @@ def _run_one_file(xlsx_path, *, separator):
             )
             continue
 
+        # Parent didn't match a config, so try the child groups under it
         processed_any_child = False
         for j, (child_group, _columns) in enumerate(child_groups.items()):
             child_config = next(
@@ -141,11 +156,14 @@ def _run_one_file(xlsx_path, *, separator):
                     f"  Inner loop {j}: Matched operation "
                     f"'{child_config['operation']}' on child group '{child_group}'"
                 )
+                # target_group stays parent_group here, matching __main__.
                 df = process_operation(
                     child_config, parent_group, df, child_groups, str(xlsx_path)
                 )
                 processed_any_child = True
 
+        # Nothing matched at all: dump the columns so the report still shows
+        # them
         if not processed_any_child:
             print(df.select(cs.starts_with(parent_group)))
 
@@ -170,11 +188,13 @@ def grade_folder(
     file_match=None,
     progress_cb=None,
 ):
+    # Grade every matching workbook in a folder
     EXTS = {".xls", ".xlsx", ".xlsm", ".xlsb", ".xltx"}
     input_dir = Path(input_dir)
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    
     files = sorted(
         p for p in input_dir.rglob("*")
         if p.is_file()
@@ -183,6 +203,7 @@ def grade_folder(
         and not p.name.startswith("._")
     )
 
+    
     if file_match:
         tokens = [t.lower() for t in file_match]
         files = [f for f in files if any(t in f.name.lower() for t in tokens)]
@@ -204,6 +225,7 @@ def grade_folder(
         )
         results.append(result)
 
+        
         try:
             rel = f.relative_to(input_dir)
         except ValueError:
@@ -213,10 +235,12 @@ def grade_folder(
         if progress_cb:
             progress_cb(i, len(files), f.name, result)
 
+    
     suffix = f"_{section}" if section else ""
     results_filename = f"{output_basename}results{suffix}.txt"
     summary_filename = f"{output_basename}summary{suffix}.csv"
 
+    
     combined_path = output_dir / results_filename
     sep = "-" * 80
     chunks = []
@@ -233,6 +257,7 @@ def grade_folder(
     chunks.append(sep)
     combined_path.write_text("\n".join(chunks), encoding="utf-8")
 
+ 
     summary_lines = ["submission_folder,filename,status,error"]
     for r in results:
         rel = Path(r["_rel"])

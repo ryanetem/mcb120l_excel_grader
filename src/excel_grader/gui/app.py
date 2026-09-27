@@ -1,3 +1,10 @@
+# The Tk window. Builds the UI, rebuilds the input fields when the lab changes,
+# validates input, and runs grading on a worker thread so the window stays
+# responsive.
+#
+# reads everything it renders from the selected preset in lab_presets.py. Adding
+# a lab is a preset entry, not a change here
+
 from __future__ import annotations
 
 import queue
@@ -27,8 +34,12 @@ class GraderApp(tk.Tk):
         self.geometry("720x820")
         self.minsize(640, 600)
 
+        # Worker thread posts log lines here, the main thread drains it on a
+        # timer
         self._log_queue = queue.Queue()
 
+        # key -> the Tk variable holding that field's value. Rebuilt every time
+        # the lab changes, this is how _run_clicked reads back what was typed
         self._param_vars = {}
         self._param_kinds = {}
         self._input_dir = tk.StringVar()
@@ -38,14 +49,17 @@ class GraderApp(tk.Tk):
         self._running = False
 
         self._build_layout()
-        self._on_lab_change()
-        self.after(100, self._drain_log_queue)
+        self._on_lab_change()  # populate fields for the starting lab
+        self.after(100, self._drain_log_queue)  # start the log pump
 
     def _build_layout(self):
+        # Builds only the parts that never change: folders, lab dropdown, run
+        # button, log. The per-lab input fields are built separately in
+        # _on_lab_change and rebuilt whenever the lab changes.
         root = ttk.Frame(self, padding=PAD * 2)
         root.pack(fill="both", expand=True)
         root.columnconfigure(0, weight=1)
-        root.rowconfigure(4, weight=1)
+        root.rowconfigure(4, weight=1)  # row 4 is the log
 
         folders = ttk.LabelFrame(root, text="Folders", padding=SECTION_PAD)
         folders.grid(row=0, column=0, sticky="ew")
@@ -72,6 +86,8 @@ class GraderApp(tk.Tk):
         ttk.Label(folders, text="Section:").grid(
             row=2, column=0, sticky="w", pady=(PAD, 0)
         )
+        # Section is optional and only affects output filenames (a suffix), it
+        # does not affect grading
         ttk.Entry(folders, textvariable=self._section).grid(
             row=2, column=1, sticky="ew", padx=PAD, pady=(PAD, 0)
         )
@@ -81,6 +97,7 @@ class GraderApp(tk.Tk):
         lab_row.columnconfigure(1, weight=1)
 
         ttk.Label(lab_row, text="Lab:").grid(row=0, column=0, sticky="w")
+        # readonly so the value is always a real lab key
         lab_combo = ttk.Combobox(
             lab_row,
             values=list(ALL_LABS.keys()),
@@ -91,6 +108,7 @@ class GraderApp(tk.Tk):
         lab_combo.grid(row=0, column=1, sticky="w", padx=(PAD, 0))
         lab_combo.bind("<<ComboboxSelected>>", lambda _e: self._on_lab_change())
 
+        # Empty frame the per-lab fields get built into
         self._config_container = ttk.Frame(root)
         self._config_container.grid(row=2, column=0, sticky="ew", pady=(SECTION_PAD, 0))
         self._config_container.columnconfigure(0, weight=1)
@@ -109,6 +127,8 @@ class GraderApp(tk.Tk):
         log_frame.columnconfigure(0, weight=1)
         log_frame.rowconfigure(0, weight=1)
 
+        # state="disabled" keeps it read-only. _append_log flips it writable
+        # briefly to insert, then back
         self._log = tk.Text(
             log_frame, height=10, wrap="word", state="disabled",
             font=("Consolas", 9),
@@ -119,6 +139,7 @@ class GraderApp(tk.Tk):
         self._log.configure(yscrollcommand=scroll.set)
 
     def _on_lab_change(self):
+    
         preset = ALL_LABS[self._lab_choice.get()]
 
         for child in self._config_container.winfo_children():
@@ -126,6 +147,8 @@ class GraderApp(tk.Tk):
         self._param_vars.clear()
         self._param_kinds.clear()
 
+        # Does not currently apply to any labs but could be changed if fixed values
+        # aren't necessary at some point in the future
         groups = grouped_params(preset)
         if not groups:
             note = ttk.Label(
@@ -135,6 +158,8 @@ class GraderApp(tk.Tk):
             note.grid(row=0, column=0, sticky="w")
             return
 
+        # One titled box per group, one widget per field. The widget type
+        # depends on kind: bool_yint -> checkbox, everything else -> text entry.
         for i, (group_name, params) in enumerate(groups):
             section = ttk.LabelFrame(
                 self._config_container, text=group_name, padding=SECTION_PAD
@@ -151,6 +176,9 @@ class GraderApp(tk.Tk):
                 self._param_kinds[key] = kind
 
                 if kind == "bool_yint":
+                    # y-intercept checkbox. checked -> set_y_int_to_0 True in the
+                    # config (force intercept to 0), unchecked -> use Excel's trendline value
+                    
                     var = tk.BooleanVar(value=bool(spec.get("default", True)))
                     ttk.Checkbutton(
                         section, text=spec["label"], variable=var
@@ -177,8 +205,10 @@ class GraderApp(tk.Tk):
             self._output_dir.set(d)
 
     def _run_clicked(self):
+        # Everything that has to pass before grading starts, only if all of it
+        # passes does it get handed off to worker thread
         if self._running:
-            return
+            return  # ignore double-clicks
 
         in_dir = Path(self._input_dir.get()) if self._input_dir.get() else None
         out_dir = Path(self._output_dir.get()) if self._output_dir.get() else None
@@ -191,6 +221,7 @@ class GraderApp(tk.Tk):
 
         preset = ALL_LABS[self._lab_choice.get()]
 
+        # Same file discovery and filter grade_folder uses. 
         EXTS = {".xls", ".xlsx", ".xlsm", ".xlsb", ".xltx"}
         xlsx_files = [
             p for p in in_dir.rglob("*")
@@ -206,6 +237,8 @@ class GraderApp(tk.Tk):
                 f for f in xlsx_files if any(t in f.name.lower() for t in low)
             ]
         if not xlsx_files:
+            # Different message depending on whether a filter was in play, so the
+            # grader knows if they picked the wrong lab for this folder
             if tokens:
                 messagebox.showwarning(
                     APP_TITLE,
@@ -219,6 +252,7 @@ class GraderApp(tk.Tk):
                 )
             return
 
+        # Read every field's current value, then let lab_presets parse and validate
         raw_params = {}
         for key, var in self._param_vars.items():
             raw_params[key] = var.get()
@@ -234,6 +268,7 @@ class GraderApp(tk.Tk):
         self._append_log(f"Output: {out_dir}")
         self._append_log(f"Found {len(xlsx_files)} file(s).\n")
 
+        # Grade off the main thread so the window doesn't freeze during a batch
         self._set_running(True)
         threading.Thread(
             target=self._worker,
@@ -242,6 +277,7 @@ class GraderApp(tk.Tk):
         ).start()
 
     def _worker(self, in_dir, out_dir, configs, preset, section):
+        # Runs on the worker thread. It must NOT touch any Tk widget directly
         try:
             from .grader_api import grade_folder
 
@@ -273,9 +309,12 @@ class GraderApp(tk.Tk):
             self._log_queue.put(f"\nError: {type(e).__name__}: {e}")
             self._log_queue.put(_tb.format_exc())
         finally:
+            
             self._log_queue.put("__DONE__")
 
     def _drain_log_queue(self):
+        # Runs on the main thread every 100ms. Pulls whatever the worker queued
+        # and writes it to the log
         try:
             while True:
                 msg = self._log_queue.get_nowait()
@@ -285,9 +324,10 @@ class GraderApp(tk.Tk):
                     self._append_log(msg)
         except queue.Empty:
             pass
-        self.after(100, self._drain_log_queue)
+        self.after(100, self._drain_log_queue)  # reschedule
 
     def _append_log(self, text):
+        # Log is read-only (disabled).
         self._log.configure(state="normal")
         self._log.insert("end", text + "\n")
         self._log.see("end")
@@ -299,6 +339,7 @@ class GraderApp(tk.Tk):
         self._log.configure(state="disabled")
 
     def _set_running(self, running):
+        
         self._running = running
         self._run_btn.configure(
             text="Running..." if running else "Run Grading",

@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 set -e
+
+echo "Installing the package and build tools..."
 pip install -e .
 pip install pyinstaller
+
+echo
+echo "Building the executable..."
 pyinstaller \
   --name MCB120L_Grader \
   --noconfirm \
@@ -20,3 +25,6 @@ pyinstaller \
   --hidden-import excel_grader.gui.grader_api \
   --hidden-import excel_grader.gui.lab_presets \
   run_gui.py
+
+echo
+echo "Done. The app is in dist/MCB120L_Grader/ (or MCB120L_Grader.app on macOS)."

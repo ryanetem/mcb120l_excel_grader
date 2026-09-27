@@ -1,6 +1,28 @@
 from __future__ import annotations
 
-# Color (dye serial dilutions)
+
+# Each lab is a dict describing (a) the fixed-value fields the
+# grader types in and (b) how those values become the pipeline's nine config
+# constants. 
+#
+#   name --> label shown in the dropdown
+#   file_match --> filename tokens for folders with >1 workbook per
+#                     submission (Lab 9/10), None means grade every file
+#   runtime_params -->   the input fields, in the order they render
+#   build_*_configs  --> nine lambdas, one per pipeline constant. Each takes the
+#                     parsed inputs (p) and returns that constant's value. Labs
+#                     that don't use a constant return {} or set(). They're
+#                     lambdas (not plain dicts) because some labs inject typed
+#                     values into the config: multiplier, denominator, set_y_int_to_0.
+#
+#   key   -->   internal name, unique within the lab, used to read the value back
+#   label   --> text shown next to the field
+#   default --> prefill. "" for text fields (forces a deliberate entry; blanks are
+#            rejected). True/False for bool_yint checkboxes.
+#   kind  -->   how to parse: float, int, text, int_list, float_list, or bool_yint
+#            (a y-intercept checkbox)
+#   group  -->  which titled section the field sits in
+
 COLOR = {
     "name": "Color",
     "file_match": None,
@@ -46,6 +68,9 @@ COLOR = {
             "target_group": ["graph"],
             "operation": ["graph"],
             "dilution_col": "color_concentration_1-3",
+            # True forces the intercept to 0, False
+            # tells the pipeline to use the trendline value. Same pattern in
+            # every lab's graph step.
             "set_y_int_to_0": p["yint_1_3"],
             "error_msg": "Graph verification failed",
         },
@@ -64,7 +89,6 @@ COLOR = {
 }
 
 
-# Buffer (pNP enzyme kinetics, HH)
 BUFFER = {
     "name": "Buffer",
     "file_match": None,
@@ -135,6 +159,8 @@ BUFFER = {
     },
     "build_stock_configs": lambda p: {p["stock_concentration"]},
     "build_dilution_configs": lambda p: set(p["dilution_factors"]),
+    # pKa is a grader input (Henderson-Hasselbalch section). Feeds PKA_CONFIGS,
+    # which verify_hh_ph reads.
     "build_pka_configs": lambda p: {"pnp": p["pka"]},
     "build_standard_configs": lambda p: set(),
     "build_assay_configs": lambda p: {},
@@ -144,11 +170,14 @@ BUFFER = {
 }
 
 
-# A280 (Lab 9, A280): BSA standards, linear standard curve
 A280 = {
     "name": "A280",
     "file_match": ["a280"],
     "runtime_params": [
+        # verify_standard checks each student's concentration against STANDARD_CONFIGS
+        {"key": "standard_concentrations",
+         "label": "Standard concentrations (mg/mL)",
+         "default": "", "kind": "float_list", "group": "Standard"},
         {"key": "yint", "label": "Set y-intercept to 0",
          "default": True, "kind": "bool_yint", "group": "Graph"},
         {"key": "dilution_factors", "label": "Dilution factor",
@@ -193,7 +222,8 @@ A280 = {
     "build_stock_configs": lambda p: set(),
     "build_dilution_configs": lambda p: set(p["dilution_factors"]),
     "build_pka_configs": lambda p: {},
-    "build_standard_configs": lambda p: set(),
+    # Feeds STANDARD_CONFIGS, which verify_standard compares each student's concentration against.
+    "build_standard_configs": lambda p: set(p["standard_concentrations"]),
     "build_assay_configs": lambda p: {},
     "build_bglb_configs": lambda p: {},
     "build_hh_configs": lambda p: {},
@@ -201,7 +231,6 @@ A280 = {
 }
 
 
-# Bradford (Lab 9, Bradford variant): BSA standards, quadratic curve
 BRADFORD = {
     "name": "Bradford",
     "file_match": ["bradford"],
@@ -255,7 +284,6 @@ BRADFORD = {
 }
 
 
-# Optimal pH (Lab 10, optimal pH)
 OPTIMAL_PH = {
     "name": "Optimal pH",
     "file_match": ["optimal"],
@@ -336,7 +364,6 @@ OPTIMAL_PH = {
 }
 
 
-# Specific Activity (Lab 10, specific activity)
 SPECIFIC_ACTIVITY = {
     "name": "Specific Activity",
     "file_match": ["specific"],
@@ -418,10 +445,15 @@ SPECIFIC_ACTIVITY = {
 }
 
 
-# Lab 12-13 Purification
 PURIFICATION = {
     "name": "Purification",
     "file_match": None,
+    # Coomassie volume is a fixed value per the spec, so the field is here, but
+    # it's INERT: verify_coomassie_yield hardcodes the allowed volumes
+    # ([0.002, 0.008, 0]) instead of reading a config, so this value isn't
+    # consumed yet. It's deliberately not routed into any build_* below. Wire it
+    # up once the pipeline reads it from config. Same situation as pNPG in
+    # Kinetics.
     "runtime_params": [
         {"key": "coomassie_volume", "label": "Coomassie volume (mL)",
          "default": "", "kind": "float", "group": "Coomassie"},
@@ -475,7 +507,6 @@ PURIFICATION = {
 }
 
 
-# Kinetics (Lab 14)
 KINETICS = {
     "name": "Kinetics",
     "file_match": None,
@@ -484,6 +515,10 @@ KINETICS = {
          "default": "", "kind": "float", "group": "Stock"},
         {"key": "yint", "label": "Set y-intercept to 0",
          "default": True, "kind": "bool_yint", "group": "Graph"},
+        # INERT, like Coomassie in Purification: the custom_conc operation
+        # hardcodes the pNPG starting value (75, divided by 3 down the series),
+        # so this field isn't consumed yet. Present because the spec marks it
+        # fixed; not routed into any build_* below.
         {"key": "pnpg_concentration", "label": "pNPG diluted concentration (mM)",
          "default": "", "kind": "float", "group": "pNPG"},
         {"key": "assay_volume", "label": "Assay volume (L)",
@@ -579,7 +614,6 @@ KINETICS = {
 }
 
 
-# Lab 15 (Thermal Stability)
 THERMAL = {
     "name": "Thermal Stability",
     "file_match": None,
@@ -614,6 +648,10 @@ THERMAL = {
     "build_stock_configs": lambda p: set(),
     "build_dilution_configs": lambda p: set(),
     "build_pka_configs": lambda p: {},
+    # verify_range reads STANDARD_CONFIGS and uses its min/max as the allowed
+    # temperature range, so the two temp fields go in as a set. This reuses the
+    # same constant A280/Bradford use for standard concentrations, which is why
+    # grader_api needed no change to support this lab
     "build_standard_configs": lambda p: {p["temp_low"], p["temp_high"]},
     "build_assay_configs": lambda p: {},
     "build_bglb_configs": lambda p: {},
@@ -622,7 +660,6 @@ THERMAL = {
 }
 
 
-# registry the GUI reads, order is dropdown order
 ALL_LABS = {
     "Color": COLOR,
     "Buffer": BUFFER,
@@ -636,8 +673,13 @@ ALL_LABS = {
 }
 
 
-# helpers used by the GUI
+# helpers the GUI calls
+
+
 def parse_runtime_value(kind, raw):
+    # Turn one field's raw input into its typed value. The _list kinds split on
+    # commas and drop blanks, so "1, 2, 4" -> [1, 2, 4] and a trailing comma is
+    # harmless
     if kind == "bool_yint":
         return bool(raw)
     raw = raw.strip()
@@ -655,10 +697,13 @@ def parse_runtime_value(kind, raw):
 
 
 def build_configs_from_params(preset, raw_params):
+    # The gateway app.py calls. Validate + parse every field, then run all nine
+    # builders and return the finished configs keyed to match grade_folder's kwargs
     parsed = {}
     for spec in preset["runtime_params"]:
         key = spec["key"]
         kind = spec["kind"]
+        # Checkboxes are never "blank" (unchecked is a valid False), so they skip the required-field check
         if kind == "bool_yint":
             parsed[key] = bool(raw_params.get(key, spec.get("default", True)))
             continue
@@ -680,6 +725,8 @@ def build_configs_from_params(preset, raw_params):
 
 
 def grouped_params(preset):
+    # Reshape the flat field list into [(group, [fields])], preserving the order
+    # each group first appears. app.py draws one titled box per group
     order = []
     buckets = {}
     for p in preset["runtime_params"]:
@@ -692,8 +739,10 @@ def grouped_params(preset):
 
 
 def output_basename(preset):
+    # Lab name -> filename-safe prefix. "Optimal pH" -> "optimalph".
     return "".join(c.lower() for c in preset["name"] if c.isalnum())
 
 
 def file_match(preset):
+    # Filename tokens for labs with >1 workbook per submission folder, or None.
     return preset.get("file_match")
